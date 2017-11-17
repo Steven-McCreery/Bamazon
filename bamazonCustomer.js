@@ -19,7 +19,17 @@ var connection = mysql.createConnection({
 var productID = 0;
 var buyQty = 0;
 
+connection.connect(function(err) {
+	if (err) {
+		throw err;
+	} else {
+		console.log("Connected!");
+		roleSelect();
+	}
+})
+
 function roleSelect() {
+
 	inquirer.prompt([
 	{
 		type: "list",
@@ -31,7 +41,7 @@ function roleSelect() {
 		switch (choice.option) {
 			case "Buy an Item":
 				console.log("Customer View");
-				customer.begin();
+				customer.renderTable();
 				return;
 
 			case "Enter Manager View":
@@ -49,42 +59,31 @@ function roleSelect() {
 
 var customer = {
 
-
-	begin() {
-		connection.end();
-		connection.connect(function(error) {
-			if (error) {
-				throw error;
-			} else{
+	renderTable() {
+		connection.query("SELECT * FROM products", function(err, res) {
+			if (err) {
+				throw err;
+			} else {
+				table = new Table;
 				console.log("================================================");
 				console.log("Welcome to Bamazon! Thanks for shopping with us!");
 				console.log("================================================");
-				connection.query("SELECT * FROM products", function(err, res) {
-					if (err) {
-						throw err;
-					} else {
-
-						// easy-table rendering method
-						res.forEach(function(t) {
-							table.cell('Product Id', t.item_id)
-							table.cell('Description', t.product_name)
-							table.cell('Department', t.department_name)
-							table.cell('Price, USD', t.price, Table.number(2))
-							table.cell('Available Qty', t.stock_quantity)
-							table.newRow()
-						});
-						console.log(table.toString());
-						customer.itemSelect();
-					}
+				res.forEach(function(t) {
+					table.cell('Product Id', t.item_id)
+					table.cell('Description', t.product_name)
+					table.cell('Department', t.department_name)
+					table.cell('Price, USD', t.price, Table.number(2))
+					table.cell('Available Qty', t.stock_quantity)
+					table.newRow()
 				});
-				// setTimeout()
-				
-				// connection.end();
+				console.log(table.toString());
+				customer.itemSelect(table);
 			}
 		})
 	},
 
-	itemSelect() {
+	itemSelect(table) {
+
 		inquirer.prompt([
 			{
 				type: "input",
@@ -100,8 +99,6 @@ var customer = {
 					}
 					// else if () {}
 					else {
-					// return true;
-						
 						return true;
 					}
 				}
@@ -116,9 +113,16 @@ var customer = {
 			}
 		]).then(function(buy) {
 			productID = buy.productID;
+			for (var i = 0; i < table.rows.length; i ++) {
+				var thing = table.rows[i];
+				console.log(thing["Product Id"]);
+				if (thing["Product Id"] == productID) {
+					console.log("available qty: ", thing["Available Qty"]);
+				}
+			}
 			console.log(productID);
 			buyQty = buy.purchaseQty;
-			customer.transact();
+			// customer.transact();
 		})
 	},
 
@@ -145,7 +149,7 @@ var customer = {
 			}
 		]).then(function(buy) {
 			if (buy.productID) {
-				connection.end();
+				// connection.end();
 				roleSelect();
 			} else {
 				console.log("Thanks for visiting!");
@@ -155,7 +159,7 @@ var customer = {
 	},
 }
 
-roleSelect();
+// roleSelect();
 
 
 
