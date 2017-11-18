@@ -6,8 +6,8 @@ var inquirer = require("inquirer");
 var Table = require("easy-table");
 var table = new Table;
 
+// mysql setup and connection parameters
 var mysql = require("mysql");
-
 var connection = mysql.createConnection({
 	host: "localhost",
 	port: 3306,
@@ -16,10 +16,16 @@ var connection = mysql.createConnection({
 	database: "bamazon_db"
 })
 
+// setting variables that will be used later in the purchasing of items
 var productID = 0;
 var buyQty = 0;
+var selectedQty = 0;
+var remainingQty = 0;
+var pricing = 0;
+var costs = 0;
 var letters = /[A-Za-z]/;
 
+// connecting to mysql and then going into the function selector
 connection.connect(function(err) {
 	if (err) {
 		throw err;
@@ -29,6 +35,7 @@ connection.connect(function(err) {
 	}
 })
 
+// allows user to select role to pursue within app
 function roleSelect() {
 
 	inquirer.prompt([
@@ -58,9 +65,16 @@ function roleSelect() {
 	});
 };
 
+// customer object containing methods for cli interaction
 var customer = {
 
+	// pulls table data from mysql db and renders it
 	renderTable() {
+
+		productID = 0;
+		buyQty = 0;
+		selectedQty = 0;
+		remainingQty = 0;
 
 		connection.query("SELECT * FROM products", function(err, res) {
 			if (err) {
@@ -84,6 +98,7 @@ var customer = {
 		})
 	},
 
+	// now that user sees what is available, they can choose what to buy (includes validation steps)
 	itemSelect(table) {
 
 		inquirer.prompt([
@@ -116,45 +131,62 @@ var customer = {
 				type: "Input",
 				message: "Please select the quantity you would like to purchase.",
 				name: "purchaseQty",
-				// validate: function(amount) {
-				// 	if (amount > ) {}
-				// }
 			}
 		]).then(function(buy) {
-			productID = buy.productID;
-			buyQty = buy.purchaseQty;
-			for (var i = 0; i < table.rows.length; i ++) {
-				var thing = table.rows[i];
-				// console.log(thing["Product Id"]);
-				if (thing["Product Id"] == productID) {
-					console.log("available qty of product ", productID, " is: ", thing["Available Qty"]);
-				} if (thing["Available Qty"] < buyQty) {
-					console.log("You have selected a greater amount than currently exists in stock, please try again.");
-					customer.renderTable();
-					return;
+			if (buy.purchaseQty <= 0) {
+				console.log(" Please select a quantity greater than zero stock quantity to purchase.");
+				customer.renderTable();
+				return;
+			} else if (buy.purchaseQty === letters) {
+				console.log(" Please select a quantity to purchase.");
+				customer.renderTable();
+				return;
+			} else {
+				productID = buy.productID;
+				buyQty = buy.purchaseQty;
+				for (var i = 0; i < table.rows.length; i++) {
+					selectedQty = table.rows[i];
+					if (selectedQty["Product Id"] == productID) {
+						if (selectedQty["Available Qty"] < buyQty) {
+							console.log(" You have selected a greater amount than currently exists in stock, please try again.");
+							customer.renderTable();
+							return;
+						}
+						pricing = selectedQty["Price, USD"];
+						selectedQty = selectedQty["Available Qty"];
+						customer.transact();
+						// return selectedQty;
+					} 
 				}
 			}
-			customer.transact();
 		})
 	},
 
+	// takes the user's input in the prior step and makes the adjustments to the mysql table data
 	transact() {
-		console.log("transact function");
-		connection.query("SELECT * FROM products", function(err, res) {
-			if (err) {
-				throw err;
+		remainingQty = (selectedQty - buyQty);
+		costs = buyQty * pricing;
+		connection.query("UPDATE products SET ? WHERE ?",
+		[
+			{
+				stock_quantity: remainingQty
+			},
+			{
+				item_id: productID
+			}
+		],
+		function(error, response) {
+			if (error) {
+				throw error;
 			} else {
-
-				console.log("transaction complete");
-				console.log("product being requested is:", productID);
-				console.log("quantity of product being requested is: ", buyQty);
+				console.log("Your completed transaction cost: $",costs);
 				customer.again();
 			}
-		})
+		});
 	},
 
+	// once the customer's transaction is completed they can make another transaction or enter another role
 	again () {
-		console.log("again function");
 		inquirer.prompt([
 			{
 				type: "confirm",
@@ -163,7 +195,7 @@ var customer = {
 				default: true
 			}
 		]).then(function(buyAgain) {
-			if (buyAgain === true) {
+			if (buyAgain.buyAgain) {
 				customer.renderTable();
 				return;
 			} else {
@@ -175,7 +207,7 @@ var customer = {
 					default: true
 				}
 				]).then(function(roleReturn) {
-					if (roleReturn === true) {
+					if (roleReturn.roleReturn) {
 						roleSelect();
 						return;
 					} else {
@@ -187,8 +219,5 @@ var customer = {
 		})
 	}
 }
-
-// roleSelect();
-
 
 
