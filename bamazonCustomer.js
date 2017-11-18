@@ -18,6 +18,7 @@ var connection = mysql.createConnection({
 
 var productID = 0;
 var buyQty = 0;
+var letters = /[A-Za-z]/;
 
 connection.connect(function(err) {
 	if (err) {
@@ -60,6 +61,7 @@ function roleSelect() {
 var customer = {
 
 	renderTable() {
+
 		connection.query("SELECT * FROM products", function(err, res) {
 			if (err) {
 				throw err;
@@ -91,14 +93,21 @@ var customer = {
 				name: "productID",
 				validate: function(id) {
 					if (id.length < 1) {
-						console.log("Please select an item.");
+						console.log(" Please select an item.");
+						return false;
+					} else if (id < 1) {
+						console.log(" Please select an item.");
 						return false;
 					} else if (id.length > 2) {
-						console.log("Please select a valid product.");
+						console.log(" Please select a valid product.");
 						return false;
-					}
-					// else if () {}
-					else {
+					} else if (letters.test(id)) {
+						console.log(" Please select an item number.");
+						return false;
+					} else if (id > table.rows.length) {
+						console.log(" Please select a valid item number.");
+						return false;
+					} else {
 						return true;
 					}
 				}
@@ -113,16 +122,19 @@ var customer = {
 			}
 		]).then(function(buy) {
 			productID = buy.productID;
+			buyQty = buy.purchaseQty;
 			for (var i = 0; i < table.rows.length; i ++) {
 				var thing = table.rows[i];
-				console.log(thing["Product Id"]);
+				// console.log(thing["Product Id"]);
 				if (thing["Product Id"] == productID) {
-					console.log("available qty: ", thing["Available Qty"]);
+					console.log("available qty of product ", productID, " is: ", thing["Available Qty"]);
+				} if (thing["Available Qty"] < buyQty) {
+					console.log("You have selected a greater amount than currently exists in stock, please try again.");
+					customer.renderTable();
+					return;
 				}
 			}
-			console.log(productID);
-			buyQty = buy.purchaseQty;
-			// customer.transact();
+			customer.transact();
 		})
 	},
 
@@ -132,7 +144,10 @@ var customer = {
 			if (err) {
 				throw err;
 			} else {
+
 				console.log("transaction complete");
+				console.log("product being requested is:", productID);
+				console.log("quantity of product being requested is: ", buyQty);
 				customer.again();
 			}
 		})
@@ -144,19 +159,33 @@ var customer = {
 			{
 				type: "confirm",
 				message: "Would you like to make another purchase?",
-				name: "productID",
+				name: "buyAgain",
 				default: true
 			}
-		]).then(function(buy) {
-			if (buy.productID) {
-				// connection.end();
-				roleSelect();
+		]).then(function(buyAgain) {
+			if (buyAgain === true) {
+				customer.renderTable();
+				return;
 			} else {
-				console.log("Thanks for visiting!");
-				connection.end();
+				inquirer.prompt([
+				{
+					type: "confirm",
+					message: "Would you like to switch to another functional role?",
+					name: "roleReturn",
+					default: true
+				}
+				]).then(function(roleReturn) {
+					if (roleReturn === true) {
+						roleSelect();
+						return;
+					} else {
+						console.log("Thanks for visiting!");
+						connection.end();
+					}
+				})
 			}
 		})
-	},
+	}
 }
 
 // roleSelect();
