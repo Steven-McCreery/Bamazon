@@ -1,0 +1,24 @@
+{
+  "name": "bamazon",
+  "version": "1.0.0",
+  "description": "node.js command line product purchasing app",
+  "main": "bamazonCustomer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Steven-McCreery/Bamazon.git"
+  },
+  "author": "Steven McCreery",
+  "license": "ISC",
+  "dependencies": {
+    "inquirer": "^3.3.0",
+    "easy-table": "^1.1.0",
+    "mysql": "^2.15.0"
+  },
+  "bugs": {
+    "url": "https://github.com/Steven-McCreery/Bamazon/issues"
+  },
+  "homepage": "https://github.com/Steven-McCreery/Bamazon#readme"
+}
